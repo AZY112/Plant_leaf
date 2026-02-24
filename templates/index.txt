@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agri-Sense Pro | AI Leaf Analysis</title>
+    <!-- Fonts and Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: #10b981; /* Emerald Green */
+            --primary-dark: #059669;
+            --secondary: #3b82f6; /* Blue */
+            --danger: #ef4444; /* Red */
+            --warning: #f59e0b; /* Amber */
+            --dark: #1f2937;
+            --light: #f3f4f6;
+            --white: #ffffff;
+            --glass: rgba(255, 255, 255, 0.95);
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --radius: 12px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        
+        body {
+            background-color: var(--light);
+            color: var(--dark);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- Header --- */
+        header {
+            background: var(--white);
+            padding: 1rem 2rem;
+            box-shadow: var(--shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: var(--primary);
+        }
+
+        .nav-btn {
+            background: transparent;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        .nav-btn:hover { background: var(--primary); color: white; }
+
+        /* --- Main Layout --- */
+        main {
+            flex: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+
+        /* --- Dashboard Stats --- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat-card {
+            background: var(--white);
+            padding: 1.5rem;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: transform 0.2s;
+        }
+        .stat-card:hover { transform: translateY(-3px); }
+        .stat-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+        .stat-info h3 { font-size: 0.9rem; color: #6b7280; font-weight: 500; }
+        .stat-info p { font-size: 1.5rem; font-weight: 700; color: var(--dark); }
+
+        /* --- Upload Section --- */
+        .upload-section {
+            background: var(--white);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 2rem;
+            text-align: center;
+            border: 2px dashed #d1d5db;
+            transition: border-color 0.3s;
+            position: relative;
+        }
+        .upload-section.drag-active {
+            border-color: var(--primary);
+            background-color: #ecfdf5;
+        }
+        
+        .upload-icon { font-size: 3rem; color: #9ca3af; margin-bottom: 1rem; }
+        .upload-text h2 { margin-bottom: 0.5rem; }
+        .upload-text p { color: #6b7280; margin-bottom: 1.5rem; }
+        
+        .btn-upload {
+            background: var(--primary);
+            color: white;
+            padding: 0.8rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-upload:hover { background: var(--primary-dark); }
+        #fileInput { display: none; }
+
+        /* --- Results Grid --- */
+        .results-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 2rem;
+        }
+
+        .result-card {
+            background: var(--white);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            animation: fadeIn 0.5s ease-out;
+            border: 1px solid #e5e7eb;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- Comparison Slider Component --- */
+        .comparison-view {
+            position: relative;
+            width: 100%;
+            height: 300px; /* Fixed height for consistency */
+            overflow: hidden;
+            background: #000;
+            cursor: col-resize;
+        }
+
+        .comparison-view img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .img-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 50%; /* Initial split */
+            height: 100%;
+            overflow: hidden;
+            border-right: 2px solid var(--white);
+            z-index: 2;
+        }
+
+        .slider-handle {
+            position: absolute;
+            top: 50%;
+            right: -18px; /* Center on the border */
+            width: 36px;
+            height: 36px;
+            background: var(--white);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+            color: var(--dark);
+            z-index: 3;
+            transform: translateY(-50%);
+            pointer-events: none; /* Let clicks pass to container */
+        }
+
+        .badge {
+            position: absolute;
+            top: 10px;
+            padding: 4px 8px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            font-size: 0.75rem;
+            border-radius: 4px;
+            z-index: 4;
+            pointer-events: none;
+        }
+        .badge-original { right: 10px; }
+        .badge-segment { left: 10px; }
+
+        /* --- Result Details --- */
+        .card-body { padding: 1.5rem; }
+        
+        .prediction-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .disease-tag {
+            background: var(--danger);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .disease-tag.healthy { background: var(--primary); }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .metric-item label { display: block; font-size: 0.8rem; color: #6b7280; margin-bottom: 4px; }
+        .metric-value { font-weight: 600; font-size: 1.1rem; }
+        
+        /* Progress Bars */
+        .progress-bg {
+            height: 6px;
+            background: #e5e7eb;
+            border-radius: 3px;
+            margin-top: 6px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 1s ease;
+        }
+
+        /* --- History Sidebar/Modal --- */
+        .modal {
+            position: fixed;
+            top: 0; right: 0; bottom: 0;
+            width: 400px;
+            background: var(--white);
+            box-shadow: -5px 0 15px rgba(0,0,0,0.1);
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            z-index: 200;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal.open { transform: translateX(0); }
+        
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .close-modal { background: none; border: none; font-size: 1.5rem; cursor: pointer; }
+        
+        .history-list { overflow-y: auto; flex: 1; }
+        .history-item {
+            display: flex;
+            gap: 10px;
+            padding: 10px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .history-thumb { width: 50px; height: 50px; object-fit: cover; border-radius: 6px; }
+        .history-info { flex: 1; }
+        .history-date { font-size: 0.75rem; color: #9ca3af; }
+
+        /* --- Toast Notification --- */
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 300;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            background: var(--dark);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: slideIn 0.3s ease;
+        }
+        .toast.success { border-left: 4px solid var(--primary); }
+        .toast.error { border-left: 4px solid var(--danger); }
+
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* Loading Overlay */
+        .loader-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            display: none;
+        }
+        .spinner {
+            width: 40px; height: 40px;
+            border: 4px solid #e5e7eb;
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .results-container { grid-template-columns: 1fr; }
+            .modal { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Notification Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Header -->
+    <header>
+        <div class="brand">
+            <i class="fa-solid fa-leaf"></i> Agri-Sense Pro
+        </div>
+        <nav>
+            <button class="nav-btn" onclick="toggleHistory()">
+                <i class="fa-solid fa-clock-rotate-left"></i> View History
+            </button>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <!-- Stats Overview -->
+        <section class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: #d1fae5; color: var(--primary);">
+                    <i class="fa-solid fa-images"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>Scanned Images</h3>
+                    <p id="statTotal">0</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: #fee2e2; color: var(--danger);">
+                    <i class="fa-solid fa-virus"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>Diseased Detected</h3>
+                    <p id="statDiseased">0</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: #dbeafe; color: var(--secondary);">
+                    <i class="fa-solid fa-chart-pie"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>Avg. Severity</h3>
+                    <p id="statSeverity">0%</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Upload Area -->
+        <section class="upload-section" id="dropZone">
+            <div class="loader-overlay" id="loader">
+                <div class="spinner"></div>
+                <p style="margin-top:10px; font-weight:600; color:var(--primary)">Analyzing Leaves...</p>
+            </div>
+            
+            <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+            <div class="upload-text">
+                <h2>Drag & Drop Leaf Images</h2>
+                <p>or click to browse. Support for multiple files (JPG, PNG).</p>
+            </div>
+            <input type="file" id="fileInput" multiple accept="image/*">
+            <button class="btn-upload" onclick="document.getElementById('fileInput').click()">
+                Select Images
+            </button>
+        </section>
+
+        <!-- Results Area -->
+        <section id="results" class="results-container">
+            <!-- Results will be injected here dynamically -->
+        </section>
+    </main>
+
+    <!-- History Sidebar -->
+    <div class="modal" id="historyModal">
+        <div class="modal-header">
+            <h2>Analysis History</h2>
+            <button class="close-modal" onclick="toggleHistory()">&times;</button>
+        </div>
+        <div class="history-list" id="historyList">
+            <!-- History items injected here -->
+        </div>
+    </div>
+
+    <script>
+        // --- State Management ---
+        let totalScanned = 0;
+        let totalDiseased = 0;
+        let severitySum = 0;
+
+        // --- DOM Elements ---
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const resultsContainer = document.getElementById('results');
+        const loader = document.getElementById('loader');
+        const historyModal = document.getElementById('historyModal');
+        const historyList = document.getElementById('historyList');
+
+        // --- Event Listeners ---
+        
+        // Drag & Drop
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-active'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-active'), false);
+        });
+
+        dropZone.addEventListener('drop', handleDrop, false);
+        fileInput.addEventListener('change', handleFiles, false);
+
+        // --- Core Logic ---
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            uploadFiles(files);
+        }
+
+        function handleFiles() {
+            const files = this.files;
+            uploadFiles(files);
+        }
+
+        async function uploadFiles(files) {
+            if (files.length === 0) return;
+
+            const formData = new FormData();
+            for (let i = 0; i < files.length; i++) {
+                formData.append('images', files[i]);
+            }
+
+            // Show Loader
+            loader.style.display = 'flex';
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error('Server error');
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    loader.style.display = 'none';
+                    processResults(data.results);
+                    showToast('Analysis complete!', 'success');
+                    // Reset input
+                    fileInput.value = '';
+                } else {
+                    throw new Error(data.error || 'Unknown error');
+                }
+
+            } catch (error) {
+                loader.style.display = 'none';
+                showToast(error.message, 'error');
+                console.error(error);
+            }
+        }
+
+        function processResults(results) {
+            results.forEach(res => {
+                // Update Stats
+                totalScanned++;
+                if (res.disease_percentage > 10) totalDiseased++; // Assume >10% is diseased
+                severitySum += res.disease_percentage;
+                updateDashboard();
+
+                // Render Card
+                const card = document.createElement('div');
+                card.className = 'result-card';
+                
+                // Determine tags
+                const isHealthy = res.disease_percentage < 15; // Threshold
+                const healthClass = isHealthy ? 'healthy' : '';
+                const healthLabel = isHealthy ? 'Healthy' : 'Diseased';
+                
+                // URL Paths
+                const originalUrl = `static/uploads/${res.filename}`;
+                const resultUrl = `static/uploads/${res.image_result}`;
+
+                card.innerHTML = `
+                    <div class="comparison-view" id="comp-${res.id}">
+                        <span class="badge badge-original">Original</span>
+                        <span class="badge badge-segment">Segmented</span>
+                        
+                        <!-- Background Image (Segmented/Result) -->
+                        <img src="${resultUrl}" alt="Segmented" style="width:100%; height:100%; object-fit:contain;">
+                        
+                        <!-- Foreground Image (Original) - Clipped -->
+                        <div class="img-overlay">
+                            <img src="${originalUrl}" alt="Original" style="width: 100%; height:100%; max-width:none; object-fit:contain;">
+                        </div>
+                        
+                        <!-- Slider Handle -->
+                        <div class="slider-handle">
+                            <i class="fa-solid fa-arrows-left-right"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="card-body">
+                        <div class="prediction-header">
+                            <h3>${res.prediction}</h3>
+                            <span class="disease-tag ${healthClass}">${healthLabel}</span>
+                        </div>
+                        
+                        <div class="metrics-grid">
+                            <div class="metric-item">
+                                <label>Confidence</label>
+                                <div class="metric-value">${res.confidence}%</div>
+                                <div class="progress-bg">
+                                    <div class="progress-fill" style="width: ${res.confidence}%; background: var(--secondary);"></div>
+                                </div>
+                            </div>
+                            <div class="metric-item">
+                                <label>Infected Area</label>
+                                <div class="metric-value">${res.disease_percentage}%</div>
+                                <div class="progress-bg">
+                                    <div class="progress-fill" style="width: ${res.disease_percentage}%; background: var(--danger);"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 1rem; text-align: right;">
+                            <a href="${resultUrl}" download="analysis_${res.filename}" style="color: var(--primary); text-decoration: none; font-size: 0.9rem;">
+                                <i class="fa-solid fa-download"></i> Download Result
+                            </a>
+                        </div>
+                    </div>
+                `;
+
+                resultsContainer.prepend(card);
+
+                // Initialize Slider Logic for this card
+                initSlider(`#comp-${res.id}`);
+            });
+        }
+
+        // --- Slider Logic ---
+        function initSlider(selector) {
+            const container = document.querySelector(selector);
+            if (!container) return;
+
+            const overlay = container.querySelector('.img-overlay');
+            const imgOverlay = overlay.querySelector('img');
+            const imgBg = container.querySelector('img:first-of-type');
+            const handle = container.querySelector('.slider-handle');
+
+            let isDragging = false;
+
+            const updateSlider = (x) => {
+                const rect = container.getBoundingClientRect();
+                let pos = x - rect.left;
+                
+                // Bounds
+                if (pos < 0) pos = 0;
+                if (pos > rect.width) pos = rect.width;
+                
+                const percentage = (pos / rect.width) * 100;
+                
+                overlay.style.width = `${percentage}%`;
+                handle.style.left = `${percentage}%`;
+                
+                // Crucial: Sync the image inside the overlay so it doesn't squish
+                // We use negative margin or width trickery usually, but 
+                // with object-fit:contain and full width, it's tricky.
+                // Simplified approach: Ensure image in overlay matches BG visual position
+                imgOverlay.style.width = `${rect.width}px`;
+                imgOverlay.style.height = `${rect.height}px`;
+            };
+
+            // Mouse Events
+            container.addEventListener('mousedown', () => isDragging = true);
+            window.addEventListener('mouseup', () => isDragging = false);
+            container.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                updateSlider(e.clientX);
+            });
+
+            // Touch Events
+            container.addEventListener('touchstart', () => isDragging = true);
+            window.addEventListener('touchend', () => isDragging = false);
+            container.addEventListener('touchmove', (e) => {
+                if (!isDragging) return;
+                updateSlider(e.touches[0].clientX);
+            });
+
+            // Initial set (resize observer handles resizing later)
+            updateSlider(container.getBoundingClientRect().width / 2 + container.getBoundingClientRect().left);
+        }
+
+        // --- Dashboard & History ---
+        function updateDashboard() {
+            document.getElementById('statTotal').innerText = totalScanned;
+            document.getElementById('statDiseased').innerText = totalDiseased;
+            const avg = totalScanned > 0 ? (severitySum / totalScanned).toFixed(1) : 0;
+            document.getElementById('statSeverity').innerText = `${avg}%`;
+        }
+
+        function toggleHistory() {
+            historyModal.classList.toggle('open');
+            if (historyModal.classList.contains('open')) {
+                fetchHistory();
+            }
+        }
+
+        async function fetchHistory() {
+            try {
+                const res = await fetch('/history');
+                const data = await res.json();
+                renderHistory(data.history);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function renderHistory(history) {
+            historyList.innerHTML = '';
+            if (!history || history.length === 0) {
+                historyList.innerHTML = '<p style="color:#9ca3af; text-align:center;">No history found.</p>';
+                return;
+            }
+
+            history.forEach(item => {
+                const el = document.createElement('div');
+                el.className = 'history-item';
+                el.innerHTML = `
+                    <img src="static/uploads/${item.result_image}" class="history-thumb" alt="thumb">
+                    <div class="history-info">
+                        <div style="font-weight:600; font-size:0.9rem;">${item.prediction}</div>
+                        <div style="font-size:0.8rem; color:var(--primary);">${item.confidence}% Confident</div>
+                        <div class="history-date">${item.timestamp}</div>
+                    </div>
+                `;
+                historyList.appendChild(el);
+            });
+        }
+
+        // --- Utilities ---
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <i class="fa-solid ${type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation'}"></i>
+                <span>${message}</span>
+            `;
+            document.getElementById('toastContainer').appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Initial Load (Optional: fetch history on load to update stats if persisted)
+        window.onload = () => {
+            // Optional: fetch('/history')... to populate stats from previous sessions
+        };
+
+    </script>
+</body>
+</html>

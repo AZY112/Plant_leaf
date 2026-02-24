@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PlantHealth AI - Side-by-Side Diagnostic</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+
+        :root {
+            --primary-green: #2d5a27;
+            --accent-green: #4caf50;
+        }
+
+        body {
+            background: radial-gradient(circle at top right, #1b3d1a 0%, #0d1a0d 100%);
+            background-attachment: fixed;
+            font-family: 'Inter', sans-serif;
+            color: white;
+            min-height: 100vh;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+        }
+
+        .upload-zone {
+            border: 2px dashed rgba(76, 175, 80, 0.3);
+            background: rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .upload-zone:hover {
+            border-color: var(--accent-green);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .result-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            overflow: hidden;
+            animation: fadeIn 0.6s ease-out;
+            margin-bottom: 2rem;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .comparison-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2px;
+            background: rgba(255, 255, 255, 0.1);
+            height: 320px;
+        }
+
+        @media (max-width: 640px) {
+            .comparison-container { height: 200px; }
+        }
+
+        .img-box {
+            position: relative;
+            overflow: hidden;
+            background: #000;
+        }
+
+        .img-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .img-label {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.6);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .severity-pill {
+            padding: 4px 14px;
+            border-radius: 99px;
+            font-weight: 900;
+            font-size: 0.75rem;
+        }
+
+        .loader {
+            border: 2px solid rgba(255,255,255,0.1);
+            border-top: 2px solid var(--accent-green);
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 0.8s linear infinite;
+            display: none;
+        }
+/* Animation for the shutdown screen */
+#shutdownOverlay:not(.hidden) {
+    animation: overlayFadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes overlayFadeIn {
+    from { opacity: 0; backdrop-filter: blur(0px); }
+    to { opacity: 1; backdrop-filter: blur(12px); }
+}
+
+/* Red glow for the stop button on hover */
+#stopServerBtn:hover {
+    background: rgba(239, 68, 68, 0.2);
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.1);
+    transform: scale(1.05);
+}
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto">
+        <!-- Brand Header -->
+       <header class="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
+    <div class="flex items-center gap-4">
+        <div class="bg-green-500/10 p-4 rounded-3xl border border-green-500/20">
+            <i class="fas fa-microscope text-3xl text-green-400"></i>
+        </div>
+        <div>
+            <h1 class="text-3xl font-black tracking-tight italic">PLANT<span class="text-green-500">LAB</span>.AI</h1>
+            <p class="text-white/40 text-[10px] font-black uppercase tracking-[0.3em]">Advanced Neural Diagnostics</p>
+        </div>
+    </div>
+    
+    <div class="flex items-center gap-3">
+        <button id="viewHistoryBtn" class="bg-white/5 hover:bg-white/10 px-6 py-3 rounded-2xl font-bold flex items-center gap-2 border border-white/10 transition-all text-sm">
+            <i class="fas fa-database text-green-500"></i> Local History
+        </button>
+        <button id="stopServerBtn" title="Stop Server" class="bg-red-500/10 hover:bg-red-500/20 p-3.5 rounded-2xl border border-red-500/20 text-red-500 transition-all">
+            <i class="fas fa-power-off"></i>
+        </button>
+    </div>
+</header>
+
+        <main class="grid lg:grid-cols-12 gap-8">
+            <!-- Control Panel -->
+            <div class="lg:col-span-4 space-y-6">
+                <section class="glass-panel p-6">
+                    <h2 class="text-sm font-black mb-6 text-green-400 uppercase tracking-widest">Image Acquisition</h2>
+
+                    <div id="dropZone" class="upload-zone rounded-2xl p-10 text-center cursor-pointer mb-6">
+                        <i class="fas fa-plus-circle text-3xl text-white/20 mb-3"></i>
+                        <p id="uploadText" class="text-xs font-bold text-white/60">Upload multiple leaf samples</p>
+                        <input type="file" id="fileInput" class="hidden" multiple accept="image/*">
+                    </div>
+
+                    <div id="selectedCount" class="hidden mb-6 p-4 bg-green-500/10 rounded-xl border border-green-500/20">
+                        <p class="text-xs font-bold text-green-400 flex items-center gap-2">
+                            <i class="fas fa-file-image"></i> 
+                            <span id="countText">0</span> items loaded in batch
+                        </p>
+                    </div>
+
+                    <div class="grid gap-3">
+                        <button id="fullScanBtn" class="w-full bg-green-600 hover:bg-green-500 py-4 rounded-xl font-black text-sm flex items-center justify-center gap-3 transition-all">
+                            <span>RUN ANALYSIS</span>
+                            <div class="loader" id="fullLoader"></div>
+                        </button>
+                        
+                        <button id="quickScanBtn" class="w-full bg-white/5 hover:bg-white/10 py-4 rounded-xl font-black text-sm border border-white/10 transition-all">
+                            <span>QUICK SCAN</span>
+                            <div class="loader" id="quickLoader"></div>
+                        </button>
+                    </div>
+                </section>
+
+                <div class="p-6 glass-panel opacity-60">
+                    <h3 class="text-[10px] font-black text-white/40 uppercase tracking-widest mb-4">Neural Engine Stats</h3>
+                    <div class="space-y-3 text-xs">
+                        <div class="flex justify-between"><span>Architecture</span><span class="font-mono">ResNet-50 + U-Net</span></div>
+                        <div class="flex justify-between"><span>Input Size</span><span class="font-mono">256x256 / 128x128</span></div>
+                        <div class="flex justify-between"><span>Confidence Threshold</span><span class="font-mono">0.3% Severity</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analysis Results Grid -->
+            <div class="lg:col-span-8">
+                <div id="resultsPlaceholder" class="h-64 flex flex-col items-center justify-center glass-panel border-dashed border-2 border-white/10">
+                    <p class="text-white/20 text-sm font-bold uppercase tracking-widest">Awaiting Samples...</p>
+                </div>
+
+                <div id="resultsGrid" class="hidden">
+                    <!-- Cards injected here -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- History Modal -->
+    <div id="historyModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95">
+        <div class="glass-panel w-full max-w-2xl flex flex-col max-h-[80vh]">
+            <div class="p-6 border-b border-white/10 flex justify-between items-center">
+                <h3 class="font-black uppercase tracking-widest text-sm">Batch History</h3>
+                <button id="closeHistory" class="text-white/40 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="historyList" class="overflow-y-auto p-4 space-y-2"></div>
+        </div>
+    </div>
+<div id="shutdownOverlay" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md">
+    <div class="text-center p-8 glass-panel border-red-500/30 max-w-sm">
+        <div class="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+            <i class="fas fa-power-off text-2xl text-red-500"></i>
+        </div>
+        <h2 class="text-xl font-black uppercase tracking-tighter mb-2">System Offline</h2>
+        <p class="text-white/40 text-sm leading-relaxed mb-6">
+            The neural engine has been successfully terminated. To resume diagnostics, please restart the Python script.
+        </p>
+        <div class="inline-block px-4 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] font-mono text-white/40">
+            PROCESS_TERMINATED_SIGINT
+        </div>
+    </div>
+</div>
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const dropZone = document.getElementById('dropZone');
+        const resultsGrid = document.getElementById('resultsGrid');
+        const resultsPlaceholder = document.getElementById('resultsPlaceholder');
+        const fullScanBtn = document.getElementById('fullScanBtn');
+        const quickScanBtn = document.getElementById('quickScanBtn');
+        const selectedCountDiv = document.getElementById('selectedCount');
+        
+        let selectedFiles = [];
+
+        dropZone.onclick = () => fileInput.click();
+        fileInput.onchange = (e) => {
+            selectedFiles = Array.from(e.target.files);
+            if(selectedFiles.length > 0) {
+                document.getElementById('countText').innerText = selectedFiles.length;
+                selectedCountDiv.classList.remove('hidden');
+            }
+        };
+
+        function getSeverityStyles(perc) {
+            if (perc < 1) return { color: 'bg-green-500/20 text-green-400', label: 'Healthy' };
+            if (perc < 5) return { color: 'bg-yellow-500/20 text-yellow-400', label: 'Moderate' };
+            return { color: 'bg-red-500/20 text-red-400', label: 'Severe' };
+        }
+
+        function createResultCard(data) {
+            const card = document.createElement('div');
+            card.className = 'result-card';
+            const styles = getSeverityStyles(data.disease_percentage);
+            
+            card.innerHTML = `
+                <!-- Side by Side Viewer -->
+                <div class="comparison-container">
+                    <div class="img-box">
+                        <img src="/static/uploads/${data.filename}" alt="Original">
+                        <span class="img-label">Original Input</span>
+                    </div>
+                    <div class="img-box">
+                        <img src="/static/uploads/${data.image_result}" alt="Analysis">
+                        <span class="img-label text-green-400">AI Neural Overlay</span>
+                    </div>
+                </div>
+                
+                <!-- Metadata Footer -->
+                <div class="p-6 bg-white/[0.02]">
+                    <div class="flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex items-center gap-4">
+                            <div class="h-10 w-1 bg-green-500 rounded-full"></div>
+                            <div>
+                                <h4 class="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1">Detected Condition</h4>
+                                <p class="text-lg font-black leading-none">${data.prediction}</p>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-6">
+                            <div class="text-right">
+                                <p class="text-[10px] font-black text-white/30 uppercase mb-1">Severity</p>
+                                <span class="severity-pill ${styles.color}">${data.disease_percentage}% ${styles.label}</span>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-[10px] font-black text-white/30 uppercase mb-1">Confidence</p>
+                                <p class="font-black text-lg text-white">${data.confidence}%</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 pt-4 border-t border-white/5 flex gap-2">
+                         <button class="text-[10px] font-black uppercase tracking-widest bg-white/5 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors" onclick="window.open('/static/uploads/${data.image_result}')">Export Heatmap</button>
+                         <button class="text-[10px] font-black uppercase tracking-widest bg-white/5 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors" onclick="window.open('/static/uploads/${data.filename}')">Raw File</button>
+                    </div>
+                </div>
+            `;
+            return card;
+        }
+
+        async function runAnalysis(mode) {
+            if (selectedFiles.length === 0) return alert("Upload images first.");
+
+            const loader = mode === 'full' ? document.getElementById('fullLoader') : document.getElementById('quickLoader');
+            const btn = mode === 'full' ? fullScanBtn : quickScanBtn;
+            
+            loader.style.display = 'block';
+            btn.style.opacity = '0.5';
+            btn.style.pointerEvents = 'none';
+
+            const formData = new FormData();
+            selectedFiles.forEach(f => formData.append('images', f));
+            formData.append('mode', mode);
+
+            try {
+                const response = await fetch('/predict', { method: 'POST', body: formData });
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultsPlaceholder.classList.add('hidden');
+                    resultsGrid.classList.remove('hidden');
+                    resultsGrid.innerHTML = ''; 
+
+                    data.results.forEach(result => {
+                        resultsGrid.appendChild(createResultCard(result));
+                    });
+                    resultsGrid.scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    alert("Error: " + data.error);
+                }
+            } catch (error) {
+                alert("Server Connection Failed");
+            } finally {
+                loader.style.display = 'none';
+                btn.style.opacity = '1';
+                btn.style.pointerEvents = 'auto';
+            }
+        }
+
+        fullScanBtn.onclick = () => runAnalysis('full');
+        quickScanBtn.onclick = () => runAnalysis('seg_only');
+
+        // History Functionality
+        const hModal = document.getElementById('historyModal');
+        const hList = document.getElementById('historyList');
+
+        document.getElementById('viewHistoryBtn').onclick = async () => {
+            hModal.classList.remove('hidden');
+            hList.innerHTML = '<p class="text-center py-10 opacity-20 text-xs font-black uppercase">Retrieving...</p>';
+            
+            try {
+                const res = await fetch('/history');
+                const data = await res.json();
+                if(data.success && data.history.length > 0) {
+                    hList.innerHTML = data.history.map(item => `
+                        <div class="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 text-xs">
+                            <div class="flex items-center gap-3">
+                                <img src="/static/uploads/${item.result_image}" class="w-10 h-10 rounded-lg object-cover">
+                                <div>
+                                    <p class="font-black">${item.prediction}</p>
+                                    <p class="opacity-30 text-[9px]">${item.timestamp}</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-green-500 font-black">${item.confidence}%</p>
+                                <p class="opacity-30 text-[8px]">CONF.</p>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    hList.innerHTML = '<p class="text-center py-10 opacity-20 text-xs">No records</p>';
+                }
+            } catch (e) { hList.innerHTML = 'Error loading history'; }
+        };
+document.getElementById('stopServerBtn').onclick = async () => {
+    // Elegant confirmation instead of a standard alert
+    if (confirm("Shutdown AI Server? This will terminate the active session.")) {
+        try {
+            // Optional: Show a "Processing" state on the button
+            const btn = document.getElementById('stopServerBtn');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            
+            const response = await fetch('/shutdown', { method: 'POST' });
+            
+            if (response.ok) {
+                // Remove the hidden class to show our custom message
+                document.getElementById('shutdownOverlay').classList.remove('hidden');
+                // Disable any interactions with the background
+                document.body.style.overflow = "hidden";
+            }
+        } catch (error) {
+            console.log("Server stopped or unreachable.");
+            // Even if the fetch fails because the server closed too fast, show the overlay
+            document.getElementById('shutdownOverlay').classList.remove('hidden');
+        }
+    }
+};
+        document.getElementById('closeHistory').onclick = () => hModal.classList.add('hidden');
+    </script>
+</body>
+</html>
